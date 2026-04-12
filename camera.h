@@ -30,7 +30,7 @@ class camera {
                         ray r = get_ray(i, j);
                         pixel_color += ray_color(r, max_depth, world);
                     }
-                    write_color(std::cout, pixel_color, samples_per_pixel);
+                    write_color(std::cout, pixel_samples_scale * pixel_color);
                 }
             }
             std::clog << "\rDone.                   \n";
@@ -38,15 +38,18 @@ class camera {
     
     private:
         /* Private Camera Variables Here */
-        int img_height; // Rendered image height
-        point3 center; // Camera center
-        point3 pixel00_loc; // Location of pixel (0, 0)
-        vec3 pixel_delta_u; // Offset to pixel to the right
-        vec3 pixel_delta_v; // Offset to pixel below
+        int img_height;             // Rendered image height
+        double pixel_samples_scale; // Color scale factor for a sum of pixel samples
+        point3 center;              // Camera center
+        point3 pixel00_loc;         // Location of pixel (0, 0)
+        vec3 pixel_delta_u;         // Offset to pixel to the right
+        vec3 pixel_delta_v;         // Offset to pixel below
 
         void initialize() {
             img_height = static_cast<int>(img_width / aspect_ratio);
             img_height = (img_height < 1) ? 1 : img_height;
+
+            pixel_samples_scale = 1.0 / samples_per_pixel;
 
             center = point3(0, 0, 0);
 
@@ -88,13 +91,15 @@ class camera {
         }
 
         color ray_color(const ray& r, int depth, const hittable& world) const {
+            // If we've exceeded the ray bounce limit, no more light is gathered.
             if (depth <= 0) {
                 return color(0, 0, 0);
             }
+
             hit_record rec;
 
             if (world.hit(r, interval(0.001, infinity), rec)) {
-                vec3 direction = random_on_hemisphere(rec.normal);
+                vec3 direction = rec.normal + random_unit_vector();
                 return 0.5 * ray_color(ray(rec.p, direction), depth - 1, world);
             }
 
